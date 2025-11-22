@@ -122,4 +122,12 @@ userSchema.pre('save', async function(next){
      }
      next()
 })
+
+// check already exist this email or not
+userSchema.pre('save', async function(next){
+   const findUser = await this.constructor.findOne({email: this.email})
+   if(findUser && findUser._id.toString() ! == this._id.toString()){
+    console.log(findUser)
+   }
+})
 module.exports = mongoose.model("User",userSchema)
