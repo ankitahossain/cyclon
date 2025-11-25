@@ -1,6 +1,7 @@
-const joi = require("joi")
+const Joi = require("joi")
+const { customError } = require("../utils/customError");
 
-const userValidateSchema = joi.object({
+const userValidateSchema = Joi.object({
     firstName: Joi.string().required().trim().empty().messages({
     "string.empty": "Name is required.",
     "string.trim": "Name fill with extra spaces",
@@ -48,13 +49,13 @@ const userValidateSchema = joi.object({
   allowUnknown: true, // <-- This allows extra fields in req.body without validation
 });
 
-exports.validateUser = async(req) =>{
+exports.validateUser = async(data) =>{
     try {
-      const value = await userValidateSchema.validateAsync(req.body)
+      const value = await userValidateSchema.validateAsync(data)
       return value
     } catch (error) {
         console.log("error from validate user",error);
-        throw new customError(401,`User validation failed. ${error.messages}`)
+        throw new customError(401,`User validation failed. ${error.message}`)
     }
 }
 

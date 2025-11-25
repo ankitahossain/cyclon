@@ -1,133 +1,180 @@
 const mongoose = require('mongoose')
 const bcrypt = require('bcrypt');
-const {Schema,Types} = mongoose
+const { custom }=require("joi");
+const jwt = require('jsonwebtoken');
+const { customError } = require("../utils/customError");
+const { Schema, Types } = mongoose;
 
 const userSchema = new Schema({
-    firstName:{
+    firstName: {
         type: String,
         trim: true,
         required: true,
     },
-    lastName:{
+    lastName: {
         type: String,
         trim: true,
     },
-    companyName:{
+    companyName: {
         type: String,
         trim: true,
     },
-    email:{
+    email: {
         type: String,
         trim: true,
         unique: true,
         required: true,
     },
-       password:{
+    password: {
         type: String,
         trim: true,
         required: true,
     },
-    image:{
-       type: String,
-        trim: true, 
+    image: {
+        type: String,
+        trim: true,
     },
-    address:{
-       type: String,
-        trim: true, 
+    address: {
+        type: String,
+        trim: true,
     },
-    isEmailVerified:{
+    isEmailVerified: {
         type: Boolean,
         default: false,
     },
-     isPhoneVerified:{
+    isPhoneVerified: {
         type: Boolean,
         default: false,
     },
-    role:{
+    role: {
         type: Types.ObjectId,
-        ref:"Role",
+        ref: "Role",
     },
-    permission:{
+    permission: {
         type: Types.ObjectId,
-        ref:"Permission",
+        ref: "Permission",
     },
-    reigon:{
+    reigon: {
         type: String,
         trim: true,
     },
-    district:{
+    district: {
         type: String,
         trim: true,
     },
-    city:{
+    city: {
         type: String,
         trim: true,
     },
-    thana:{
+    thana: {
         type: String,
         trim: true,
     },
-    zipCode:{
+    zipCode: {
         type: Number,
     },
-    country:{
+    country: {
         type: String,
         trim: true,
-        default:"Bangladesh",
+        default: "Bangladesh",
     },
-    dateofBirth:{
+    dateofBirth: {
         type: Date,
     },
-    gender:{
+    gender: {
         type: String,
-        enum:["male","female","custom"],
+        enum: ["male", "female", "custom"],
     },
-    lastLogin:{
-        type:Date,
+    lastLogin: {
+        type: Date,
     },
-    lastLogout:{
-        type:Date,
+    lastLogout: {
+        type: Date,
     },
-    cart:[{
+    cart: [{
         type: Types.ObjectId,
-        ref:"Product",
+        ref: "Product",
     },],
-    wishList:[{
+    wishList: [{
         type: Types.ObjectId,
-        ref:"Product",
+        ref: "Product",
     },],
-      newsLetterSubscribe: Boolean,
-        resetPasswordOTP: Number,
-         resetPasswordExpireTime :Date,
-           resetPasswordExpireTime : Boolean,
-           isBlocked : Boolean,
-             refreshToken:{
-                type: String,
-                trim: true,
-             },
-             isActive:Boolean,
-           
+    newsLetterSubscribe: Boolean,
+    resetPasswordOTP: Number,
+    resetPasswordExpireTime: Date,
+    resetPasswordExpireTime: Boolean,
+    isBlocked: Boolean,
+    refreshToken: {
+        type: String,
+        trim: true,
+    },
+    isActive: Boolean,
+
 
 
 
 })
 
 // schema middleware
-userSchema.pre('save', async function(next){
+userSchema.pre('save', async function (next) {
     console.log(this.password)
-    if(this.isModified('password'))
-     {
-        const saltPassword = await bcrypt.hash(this.password,10);
-         this.password = saltPassword;
-     }
-     next()
+    if (this.isModified('password')) {
+        const saltPassword = await bcrypt.hash(this.password, 10);
+        this.password = saltPassword;
+    }
+    next()
 })
 
 // check already exist this email or not
-userSchema.pre('save', async function(next){
-   const findUser = await this.constructor.findOne({email: this.email})
-   if(findUser && findUser._id.toString() ! == this._id.toString()){
-    console.log(findUser)
-   }
+userSchema.pre('save', async function (next) {
+    const findUser = await this.constructor.findOne({ email: this.email })
+    if (findUser && findUser._id.toString() !== this._id.toString()) {
+        throw new customError(400, "User already exists with this email!")
+    }
+    next()
 })
-module.exports = mongoose.model("User",userSchema)
+
+// generate accessToken method 
+userSchema.method.generateAccessToken = function (){
+     const accessToken = jwt.sign({
+        userId: this._id,
+        email: this.email,
+        role: this.role,
+     },
+    process.env.ACCESSTOKEN_EXPIRES,
+    process.env.ACCESSTOKEN_SECRET
+)
+ return accessToken;
+    
+}
+// generate refreshToken method 
+userSchema.method.generateRefreshToken = function (){
+      return jwt.sign({
+        userId: this._id,
+        
+     },
+    process.env.REFRESHTOKEN_EXPIRES ,
+    process.env.REFRESHTOKEN_SECRET 
+)
+ return accessToken;
+    
+}
+
+// verify access token 
+userSchema.method.verifyAccessToken =  function (token){
+      return jwt.verify(token,process.env.ACCESSTOKEN_SECRET)
+    
+}
+
+// verify refresh token 
+userSchema.method.verifyRefreshToken =  function (token){
+      return jwt.verify(token,process.env.REFRESHTOKEN_SECRET)
+    
+}
+
+
+
+
+
+ 
+module.exports = mongoose.model("User", userSchema)
