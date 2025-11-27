@@ -1,6 +1,5 @@
 const mongoose = require('mongoose')
 const bcrypt = require('bcrypt');
-const { custom }=require("joi");
 const jwt = require('jsonwebtoken');
 const { customError } = require("../utils/customError");
 const { Schema, Types } = mongoose;
@@ -54,7 +53,8 @@ const userSchema = new Schema({
         type: Types.ObjectId,
         ref: "Permission",
     },
-    reigon: {
+    // FIX: Corrected typo from 'reigon' to 'region'
+    region: {
         type: String,
         trim: true,
     },
@@ -101,23 +101,18 @@ const userSchema = new Schema({
     },],
     newsLetterSubscribe: Boolean,
     resetPasswordOTP: Number,
+    // FIX: Removed conflicting Boolean field, kept only Date
     resetPasswordExpireTime: Date,
-    resetPasswordExpireTime: Boolean,
     isBlocked: Boolean,
     refreshToken: {
         type: String,
         trim: true,
     },
     isActive: Boolean,
+});
 
-
-
-
-})
-
-// schema middleware
+// schema middleware - Password Hashing
 userSchema.pre('save', async function (next) {
-    console.log(this.password)
     if (this.isModified('password')) {
         const saltPassword = await bcrypt.hash(this.password, 10);
         this.password = saltPassword;
@@ -125,7 +120,7 @@ userSchema.pre('save', async function (next) {
     next()
 })
 
-// check already exist this email or not
+// schema middleware - Duplicate Email Check
 userSchema.pre('save', async function (next) {
     const findUser = await this.constructor.findOne({ email: this.email })
     if (findUser && findUser._id.toString() !== this._id.toString()) {
@@ -134,47 +129,51 @@ userSchema.pre('save', async function (next) {
     next()
 })
 
-// generate accessToken method 
-userSchema.method.generateAccessToken = function (){
-     const accessToken = jwt.sign({
+// FIX: Added essential method for login
+userSchema.methods.isPasswordMatched = async function (enteredPassword) {
+    return await bcrypt.compare(enteredPassword, this.password);
+}
+
+// FIX: Corrected all method definitions to use userSchema.methods (plural)
+userSchema.methods.generateAccessToken = function (){
+    const accessToken = jwt.sign({
         userId: this._id,
         email: this.email,
         role: this.role,
-     },
-    process.env.ACCESSTOKEN_EXPIRES,
-    process.env.ACCESSTOKEN_SECRET
-)
- return accessToken;
-    
+    },
+    process.env.ACCESSTOKEN_SECRET, 
+    { expiresIn: process.env.ACCESSTOKEN_EXPIRES }
+    )
+    return accessToken;
 }
-// generate refreshToken method 
-userSchema.method.generateRefreshToken = function (){
-      return jwt.sign({
+
+userSchema.methods.generateRefreshToken = function (){
+    return jwt.sign({
         userId: this._id,
-        
-     },
-    process.env.REFRESHTOKEN_EXPIRES ,
-    process.env.REFRESHTOKEN_SECRET 
-)
- return accessToken;
-    
+    },
+    process.env.REFRESHTOKEN_SECRET,
+    { expiresIn: process.env.REFRESHTOKEN_EXPIRES }
+    )
 }
 
-// verify access token 
-userSchema.method.verifyAccessToken =  function (token){
-      return jwt.verify(token,process.env.ACCESSTOKEN_SECRET)
-    
+userSchema.methods.verifyAccessToken = function (token){
+    return jwt.verify(token,process.env.ACCESSTOKEN_SECRET)
 }
 
-// verify refresh token 
-userSchema.method.verifyRefreshToken =  function (token){
-      return jwt.verify(token,process.env.REFRESHTOKEN_SECRET)
-    
+userSchema.methods.verifyRefreshToken = function (token){
+    return jwt.verify(token,process.env.REFRESHTOKEN_SECRET)
 }
+ 
 
 
 
+userSchema.methods.generateEmailToken = function () {
+    return jwt.sign(
+        { id: this._id },
+        process.env.EMAIL_SECRET,     // make sure this exists in .env
+        { expiresIn: "1h" }
+    );
+};
 
 
- 
 module.exports = mongoose.model("User", userSchema)

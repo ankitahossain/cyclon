@@ -1,28 +1,26 @@
 require('dotenv').config();
-const nodemailer = require("nodemailer")
-// Create a test account or replace with real credentials.
+const nodemailer = require("nodemailer");
+
 const transporter = nodemailer.createTransport({
-  service:"gmail",
-  secure: process.env.NODE_ENV == "development" ?false:true, // true for 465, false for other ports
-  auth: {
-    user: "maddison53@ethereal.email",
-    pass: "jn7jnAPss4f63QBp6D",
-  },
+    host: process.env.SMTP_HOST,
+    port: Number(process.env.SMTP_PORT) || 587,
+    secure: false, // true if 465
+    auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_KEY
+    },
+    tls: {
+        rejectUnauthorized: false // avoids self-signed certificate errors
+    }
 });
 
-exports.emailSend = async () =>{
+exports.emailSend = async (to, html) => {
     const info = await transporter.sendMail({
-    from: 'cyclon',
-    to: "ankitahossaina@gmail.com",
-    subject: "Confirm Registration",
-    html: `  <body>
-    <section>
-    <img src="../../icon.png"alt=""/>
-    <a href = "www.frontendurl.com/login">Click here</a>
-</section>
-</body> `, // HTML body
-  });
-  console.log("Message sent:", info.messageId);
-}
-
-
+        from: `"Cyclon" <${process.env.SMTP_USER}>`,
+        to,
+        subject: "Verify Your Email",
+        html
+    });
+    console.log("Email sent:", info.messageId);
+    return info;
+};
