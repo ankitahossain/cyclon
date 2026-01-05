@@ -8,7 +8,7 @@ const userSchema = new Schema({
     firstName: {
         type: String,
         trim: true,
-        required: true,
+        
     },
     lastName: {
         type: String,
@@ -120,6 +120,8 @@ userSchema.pre('save', async function (next) {
     next()
 })
 
+
+
 // schema middleware - Duplicate Email Check
 userSchema.pre('save', async function (next) {
     const findUser = await this.constructor.findOne({ email: this.email })
@@ -135,16 +137,21 @@ userSchema.methods.isPasswordMatched = async function (enteredPassword) {
 }
 
 // FIX: Corrected all method definitions to use userSchema.methods (plural)
-userSchema.methods.generateAccessToken = function (){
-    const accessToken = jwt.sign({
+userSchema.methods.generateAccessToken = function(){
+    return jwt.sign({
         userId: this._id,
         email: this.email,
         role: this.role,
     },
     process.env.ACCESSTOKEN_SECRET, 
     { expiresIn: process.env.ACCESSTOKEN_EXPIRES }
-    )
+    );
     return accessToken;
+}
+
+// load hash from from your password DB
+userSchema.methods.compareHashPassword = async function (humanPass)  {
+    return await bcrypt.compare(humanPass,this.password)
 }
 
 userSchema.methods.generateRefreshToken = function (){
@@ -153,27 +160,17 @@ userSchema.methods.generateRefreshToken = function (){
     },
     process.env.REFRESHTOKEN_SECRET,
     { expiresIn: process.env.REFRESHTOKEN_EXPIRES }
-    )
+    );
 }
 
-userSchema.methods.verifyAccessToken = function (token){
-    return jwt.verify(token,process.env.ACCESSTOKEN_SECRET)
-}
+userSchema.methods.verifyAccessToken = async function (token){
+    return await jwt.verify(token,process.env.ACCESSTOKEN_SECRET)
+};
 
-userSchema.methods.verifyRefreshToken = function (token){
-    return jwt.verify(token,process.env.REFRESHTOKEN_SECRET)
+userSchema.methods.verifyRefreshToken = async function (token){
+    return await jwt.verify(token,process.env.REFRESHTOKEN_SECRET)
 }
  
-
-
-
-userSchema.methods.generateEmailToken = function () {
-    return jwt.sign(
-        { id: this._id },
-        process.env.EMAIL_SECRET,     // make sure this exists in .env
-        { expiresIn: "1h" }
-    );
-};
 
 
 module.exports = mongoose.model("User", userSchema)

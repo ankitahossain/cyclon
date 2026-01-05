@@ -1,3 +1,4 @@
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 require("dotenv").config();
 const { DBconnection } = require("./src/database/db");
 const app = require("./src/app");

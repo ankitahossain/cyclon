@@ -1,7 +1,7 @@
 const { json } = require("express");
 const { asynchandler } = require("../utils/asynchandler");
 const { apiResponse } = require("../utils/apiResponse");
-const { customError } = require("../utils/CustomError");
+const { customError } = require("../utils/customError");
 
 
 /**

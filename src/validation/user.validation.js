@@ -1,68 +1,70 @@
-const Joi = require("joi")
-const { customError } = require("../utils/customError");
+//todo:model schema bananor jonno jemon mongoose temone validation schema bananor jonno joi
 
-const userValidateSchema = Joi.object({
-    firstName: Joi.string()
-        .required()
-        // FIX: Replaced .empty() with .min(1) for clearer required rule
-        .min(1)
-        .trim()
-        .messages({
-            "string.empty": "Name is required.",
-            "string.min": "Name is required.",
-            "string.trim": "Name cannot contain extra spaces",
+//todo:website joi.dev
+const Joi=require('joi');
+const {customError} = require('../utils/customError')
+
+
+const userValidationSchema = Joi.object({
+    firstName:Joi.string().trim().empty().messages({
+        
+        "any.required":"Name is required",
+        "name.trim":"Name fill with extra space",
     }),
-    phoneNumber: Joi.string()
-        .optional()
-        .trim()
-        .allow(null, "")
-        .pattern(/^(?:\+880|880|0)1[3-9]\d{8}$/)
-        .messages({
-            "string.pattern.base":
-                "Phone number must be a valid Bangladeshi number (e.g. 01XXXXXXXXX, 8801XXXXXXXXX, or +8801XXXXXXXXX)",
-            "string.base": "Phone number must be a string",
-            "string.empty": "Phone number cannot be empty",
-        }),
-
-    email: Joi.string()
-        .trim()
-        .required() // FIX: Made email explicitly required by removing .allow(null, "")
-        .pattern(new RegExp(/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/))
-        .messages({
-            "string.empty": "Email is required.",
-            "any.required": "Email is required.",
-            "string.trim": "Email should not contain extra spaces.",
-            "string.pattern.base": "Email format is invalid.",
+    phoneNumber:Joi.string().optional().trim().pattern(new RegExp('^(?:\\+88|0088)?01[3-9]\\d{8}$')).messages({
+        "string.pattern.base":"Phone number format is invaid",
+        "string.trim":"Phone number should not contain extra spaces",
+        "string.empty":"Phone number cannot be empty",
+        
     }),
+    email:Joi.string().trim().email().empty().messages({
+        "string.empty":"Email is required",
+        "any.required":"Email is required",
+        "string.trim":"Email should not contain extra spaces",
+        "string.pattern.base":"Email format is invalid",
 
-    password: Joi.string()
-        .trim()
-        .required() // Changed from .empty() to .required() for clarity
-        // FIX: Expanded Regex to allow a wider range of standard special characters
-        .pattern(
-            new RegExp(/^(?=.*[0-9])(?=.*[!@#$%^&*-+=?_])[a-zA-Z0-9!@#$%^&*-+=?_]{8,16}$/)
-        )
-        .messages({
-            "string.empty": "Password is required.",
-            "any.required": "Password is required.",
-            "string.trim": "Password should not contain extra spaces.",
-            "string.pattern.base":
-                "Password must be 8-16 characters long, include at least one number and one special character.",
-        }),
-}).options({
-    abortEarly: true,
-    allowUnknown: true,
+    }),
+    password:Joi.string().trim().min(8).pattern(new RegExp('^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,}$')).required().messages({
+        "string.empty":"Password is required",
+        'any.required':"Password is required",
+        "string.min":"Password must be at least 8 characters long,include at least one number and one special character (@,$,!,%,*,?,&)",
+        "string.pattern.base":"Pasword must be at least 8-16 long,include at least one number and one special character."
+    })
+
+}).optional({
+    abortEarly:false,//ekadhik error thakle sob gulo error return korbe
+    allowUnknown:true,//this allow extra fields in req.body without validation
 });
 
-// FIX: Corrected typo from 'valdateUser' to 'validateUser'
-exports.validateUser = async(data) =>{
-    try {
-        // Assume 'data' is req.body, which contains the user fields
-        const value = await userValidateSchema.validateAsync(data)
-        return value
-    } catch (error) {
-        console.log("error from validate user",error);
-        // FIX: Changed 401 (Unauthorized) to 400 (Bad Request) for validation errors
-        throw new customError(400,`User validation failed. ${error.message}`)
+
+const validateUser = async(req)=>{
+    try{
+       const validatedData=await userValidationSchema.validateAsync(req.body); 
+       return validatedData;
+    }catch(err){
+        console.log("error form validation",err);
+        throw new customError(400,`user validation failed ${err}`);
     }
 }
+
+
+// const loginValidationSchema = Joi.object({
+//     email: Joi.string().trim().email().optional(),
+//     phoneNumber: Joi.string().trim().optional(),
+//     password: Joi.string().required() // Only password is strictly required here
+// }).or('email', 'phoneNumber'); // Requires at least one of these
+
+// const validateLogin = async (req) => {
+//     try {
+//         const validatedData = await loginValidationSchema.validateAsync(req.body, {
+//             abortEarly: false,
+//         });
+//         return validatedData;
+//     } catch (err) {
+//         // Extracting just the message for a cleaner error
+//         const errorMessage = err.details ? err.details.map(i => i.message).join(', ') : err.message;
+//         throw new customError(400, errorMessage);
+//     }
+// };
+
+module.exports={validateUser}

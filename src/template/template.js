@@ -1,4 +1,4 @@
-const RegistrationTemplate = (firstName, verification_link) => {
+const RegistrationTemplate = (firstName, verification_link, otp, expireTime) => {
   return `
 <html lang="en">
 <head>
@@ -18,7 +18,12 @@ const RegistrationTemplate = (firstName, verification_link) => {
   <div class="container">
     <div class="header">Welcome to Cyclon</div>
     <div class="content">
-      <h2>Hello ${firstName},</h2>
+      <h2>Hello ${firstName},</h2></br>
+
+       <p> Your OTP is: ${otp},</p> </br> </br>
+
+              <p>this otp will expire within : ${expireTime},</p> </br> </br>
+
       <p>Thank you for registering with <strong>Cyclon</strong>! Your account has been created successfully.</p>
       <p>To complete your registration, please verify your email by clicking the button below:</p>
       <p style="text-align:center;">

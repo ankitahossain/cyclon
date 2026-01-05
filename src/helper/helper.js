@@ -2,25 +2,21 @@ require('dotenv').config();
 const nodemailer = require("nodemailer");
 
 const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: Number(process.env.SMTP_PORT) || 587,
-    secure: false, // true if 465
-    auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_KEY
-    },
-    tls: {
-        rejectUnauthorized: false // avoids self-signed certificate errors
+    service:"gmail",
+    secure:process.env.NODE_ENV == "development" ? false: true,
+    auth:{
+        user:"ankitahossaina@gmail.com",
+        pass:process.env.APP_PASSWORD || "liju fxer xdgh vsdt"
     }
 });
 
-exports.emailSend = async (to, html) => {
+exports.emailSend = async (email, template) => {
     const info = await transporter.sendMail({
-        from: `"Cyclon" <${process.env.SMTP_USER}>`,
-        to,
+        from: "Cyclon",
+        to: email,
         subject: "Verify Your Email",
-        html
-    });
+        html:template, //todo:html version of the message
+        });
     console.log("Email sent:", info.messageId);
     return info;
 };
