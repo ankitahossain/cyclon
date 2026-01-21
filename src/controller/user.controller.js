@@ -1,84 +1,210 @@
-const User = require("../models/user.model");
+
 const { apiResponse } = require("../utils/apiResponse");
 const { customError } = require("../utils/customError");
 const { asynchandler } = require("../utils/asynchandler");
 const { validateUser } = require("../validation/user.validation");
 const { emailSend } = require("../helper/helper");
 const { RegistrationTemplate } = require("../template/template");
+const { resetpasswordemailtemplate } = require("../template/template")
 const userModel = require("../models/user.model");
 const crypto = require('crypto');
 
 //Registration controller
 exports.registration = asynchandler(async (req, res) => {
-    // Validate user input
-    const value = await validateUser(req.body);
-    const { firstName, email, password } = value;
+   // Validate user input
+   const validatedData = await validateUser(req);
+   const { firstName, email, password } = validatedData;
 
-    //todo: save user to DB
-    const user = await new userModel({ firstName, email, password }).save();
+   //todo: save user to DB
+   const user = await new userModel({ firstName, email, password }).save();
 
-     if (!user) {
-        throw new customError(500, "RegistrationFailed", "Registration failed. Please try again");
-    }
+   if (!user) {
+      throw new customError(500, "RegistrationFailed", "Registration failed. Please try again");
+   }
 
-    // todo:random OTP generate
-   const otp= crypto.randomInt(100000,999999) ;
-   const expireTime=Date.now() + 10 * 60 * 60 * 1000;
+   // todo:random OTP generate
+   const otp = crypto.randomInt(100000, 999999);
+   const expireTime = Date.now() + 10 * 60 * 60 * 1000;
    console.log(otp);
-   const verifyLink=`https://form.com/verify-email/${email}`;
-   const template =RegistrationTemplate(firstName,verifyLink,otp,expireTime);
-   await emailSend(email,template);
+   const verifyLink = `https://form.com/verify-email/${email}`;
+   const template = RegistrationTemplate(user.firstName, verifyLink, otp, expireTime);
+   await emailSend(email, template);
    user.resetPasswordExpireTime = expireTime;
    await user.save();
-   apiResponse.sendsuccess(res,201,"Registration Successfull",{
+   apiResponse.sendsuccess(res, 201, "Registration Successfull", {
       // todo:postman e jeno shudhu firstName are email ta dekhai
-   firstName,email
+      firstName, email
    });
-  
-  
-
-
-
-
 });
 
-   //todo:login
-exports.login=asynchandler(async(req,res)=>{
-   const validatedData=await validateUser(req);
-   const {email,phoneNumber,password}=validatedData;
+
+//todo:login
+exports.login = asynchandler(async (req, res) => {
+   const validatedData = await validateUser(req);
+   const { email, phoneNumber, password } = validatedData;
    //todo: Find the user
-   const user = await userModel.findOne({$or:[{email:email},{phoneNumber:phoneNumber}]});
+   const user = await userModel.findOne({ $or: [{ email: email }, { phoneNumber: phoneNumber }] });
    const isPasswordMatch = await user.compareHashPassword(password);
 
    //todo:check if user exsists and password matches
-   if(!user || !isPasswordMatch){
-      throw new customError(400,"Your Password or email does not match");
+   if (!user || !isPasswordMatch) {
+      throw new customError(400, "Your Password or email does not match");
 
    }
-   
-  
+
+
    // console.log(isPasswordMatch);
 
-    
-     //todo:make an access and refresh token
-   const accessToken= await user.generateAccessToken();
-   const refreshToken= await user.generateRefreshToken();
+
+   //todo:make an access and refresh token
+   const accessToken = await user.generateAccessToken();
+   console.log("Access Token:", accessToken);
+   const refreshToken = await user.generateRefreshToken();
+   console.log("Refresh Token:", refreshToken);
+
+   const isProduction = process.env.NODE_ENV == "production";
+
+   res.cookie("refreshToken", refreshToken, {
+      httpOnly: true,
+      secure: isProduction ? true : false, //todo:http / https
+      sameSite: "lax",
+      path: "/",
+      maxAge: 7 * 24 * 60 * 60 * 1000, //todo:7days
+
+   });
+   console.log(refreshToken);
+
+   // save the refresh token in db
+
+   user.refreshToken = refreshToken
+
+   return apiResponse.sendsuccess(res, 200, "Login Successful", {
+      user: { firstName: user.firstName, email: user.email }
+   });
+
+});
+
+
+// todo:email verification
+exports.emailVerification = asynchandler(async (req, res) => {
+   if (!otp || !email) {
+      throw new customError("401", "OTP or mail not found")
+   }
+
+   const findUser = await userModel.findOne({
+      $and: [{ email: email, resetPasswordOTP: otp, resetPasswordExpireTime: { $gt: Date.now() }, }],
+   });
+   if (!finduser) {
+      throw new customError(401, "Otp or time expire try again");
+   }
+
+
+   findUser.resetPasswordOTP = null;
+   findUser.resetPasswordExpireTime = null;
+   findUser.isEmailVerified = true;
+   await findUser.save();
+
+
+   apiResponse.sendsuccess(res, 200, "Email verified successfully", { email: findUser.email, firstName: findUser.firstName });
+
+})
+
+
+// todo: forget password
+exports.forgetPassword = asynchandler(async (req, res) => {
+   const { email, firstName } = req.body;
+   if (!email) {
+      throw new customError(401, "Email missing");
+   }
+   const user = await userModel.findOne({ email: email })
+   if (!user) {
+      throw new customError("401", "User not found")
+   }
+   //todo:random OTP generate
+   const otp = crypto.randomInt(100000, 999999);
+   const expireTime = Date.now() + 10 * 60 * 60 * 1000;
+   const verifyLink = 'http://form.com/resetpassoword/${email}';
+   const template = resetpasswordemailtemplate(firstName, verifyLink, otp, expireTime);
+   await emailSend(email, template);
+
+   apiResponse.sendsuccess(res, 301, "check your email", null);
+})
+
+
+exports.resetPassword = asynchandler(async (req, res) => {
+   const { email, newPassword, confirmPassword } = req.body
+   if (!newPassword) {
+      throw new customError(401, "New password missing")
+   }
+   if (!confirmPassword) {
+      throw new customError(401, "confirm password missing")
+   }
+
+   if (newPassword !== confirmPassword) {
+      throw new customError(401, "password or confirm password does not match")
+   }
+
+   // find the user 
+   const findUser = await userModel.findOne({ email })
+
+   if (!findUser) {
+      throw new customError(401, "User not found")
+   }
+
+   findUser.password = newPassword;
+   findUser.resetPasswordOTP = null;
+   findUser.resetPasswordExpireTime = null;
+   await findUser.save();
+   apiResponse.sendsuccess(res, 200, "Password reset successfully", findUser)
+
+
+})
+
+
+
+// logout 
+exports.logout = asynchandler(async (req, res) => {
+   const findUser = await userModel.findOne({email:req.user.email})
+   console.log(req.user);
+
+   if (!findUser) {
+      throw new customError(401, "User not found");
+   }
+
+   
 
    const isProduction=process.env.NODE_ENV == "production";
    
-   res.cookie("refreshToken",refreshToken,{
-      httpOnly: true ,
-      secure: isProduction ? true : false , //todo:http / https
-      sameSite:"lax",
-      path: "/" ,
-      maxAge: 7 * 24 * 60 *60 *1000, //todo:7days
 
+   //todo:clear the cookies
+   res.clearCookie("refreshToken", {
+      httpOnly: true,
+      secure: isProduction ? true : false,
+      samSite: "none",
+      path: "/", //This must match the path used when setting the cookie
    });
-    console.log(refreshToken);
+
+   // if(!refreshToken){
+   //    throw new customError(401, "Refresh not found")
+   // }
 
 
-     return apiResponse.sendsuccess(res, 200, "Login Successful", {
-        user: { firstName: user.firstName, email: user.email }
-    });
 
-   });
+   findUser.refreshToken = null
+   await findUser.save();
+   apiResponse.sendsuccess(res, 200, "Logout Successfull", findUser);
+})
+
+
+// get me
+exports.getMe = asynchandler(async(req, res)=>{
+   const id = req.user.id;
+   const findUser = await userModel.findById(id);
+   if(!findUser){
+      throw new customError(401,"User not found")
+   }
+   apiResponse.sendsuccess(res,200,"User retrieved successfully",findUser)
+})
+
+
+

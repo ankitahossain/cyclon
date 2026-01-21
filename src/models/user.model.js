@@ -53,7 +53,6 @@ const userSchema = new Schema({
         type: Types.ObjectId,
         ref: "Permission",
     },
-    // FIX: Corrected typo from 'reigon' to 'region'
     region: {
         type: String,
         trim: true,
@@ -101,7 +100,6 @@ const userSchema = new Schema({
     },],
     newsLetterSubscribe: Boolean,
     resetPasswordOTP: Number,
-    // FIX: Removed conflicting Boolean field, kept only Date
     resetPasswordExpireTime: Date,
     isBlocked: Boolean,
     refreshToken: {
@@ -111,7 +109,7 @@ const userSchema = new Schema({
     isActive: Boolean,
 });
 
-// schema middleware - Password Hashing
+// Password Hashing
 userSchema.pre('save', async function (next) {
     if (this.isModified('password')) {
         const saltPassword = await bcrypt.hash(this.password, 10);
@@ -122,7 +120,7 @@ userSchema.pre('save', async function (next) {
 
 
 
-// schema middleware - Duplicate Email Check
+// Check already this email exists or not
 userSchema.pre('save', async function (next) {
     const findUser = await this.constructor.findOne({ email: this.email })
     if (findUser && findUser._id.toString() !== this._id.toString()) {
@@ -131,12 +129,11 @@ userSchema.pre('save', async function (next) {
     next()
 })
 
-// FIX: Added essential method for login
+
 userSchema.methods.isPasswordMatched = async function (enteredPassword) {
     return await bcrypt.compare(enteredPassword, this.password);
 }
 
-// FIX: Corrected all method definitions to use userSchema.methods (plural)
 userSchema.methods.generateAccessToken = function(){
     return jwt.sign({
         userId: this._id,
@@ -149,7 +146,7 @@ userSchema.methods.generateAccessToken = function(){
     return accessToken;
 }
 
-// load hash from from your password DB
+
 userSchema.methods.compareHashPassword = async function (humanPass)  {
     return await bcrypt.compare(humanPass,this.password)
 }
