@@ -1,8 +1,15 @@
 const express = require('express');
-const authController = require("../../controller/user.controller");
-const{authGuard}= require('../../middleware/authGuard.middleware');
-const _ = express.Router();
+const _  = express.Router();
 
-_.route("/create-category").post()
+const {createCategory} = require("../../controller/category.controller")
+const{authGuard}= require('../../middleware/authGuard.middleware');
+const {upload} = require("../../middleware/multer.middleware");
+const multerError = require("../../middleware/multerError.middleware");
+
+_.route('/create-category').post(upload.fields([{
+    name:"image" ,maxCount:1
+}]),multerError,createCategory);
+
+
 
 module.exports = _;

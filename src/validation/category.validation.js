@@ -18,53 +18,36 @@ exports.validateCategory = async (req) => {
   try {
     const value = await categoryValidationSchema.validateAsync(req.body);
 
-    //Allowed MIME Types
+    const allowedMimeTypes = ["image/jpeg", "image/png", "image/jpg", "image/webp", "image/gif"];
 
-    const allowedMimeTypes = [
-      "image/jpeg",
-      "image/png",
-      "image/jpg",
-      "image/webp",
-      "image/gif",
-    ];
-
-    // 1. First, check if the file exists at all
+    // 1. Check if the file exists safely
     const imageFile = req.files?.image?.[0];
 
-    const mimeType = imageFile.mimetype || imageFile.file?.mimetype;
-
-    if (!allowedMimeTypes.includes(mimeType)) {
-      throw new customError("Only JPG,JPEG, and PNG image files are allowed");
-    }
-    // console.log(req.files);
-
-    //limit number of files(example:max 1 file allowed)
-    if (req.files?.image?.length == 0) {
-      throw new customError(401, "Image not found.");
+    if (!imageFile) {
+      throw new customError(400, "Image is required.");
     }
 
-    
-    console.log(req.files.image[0].size);
-
-    if(req?.files?.image[0]?.size >= 5000){
-        throw new customError(401,"Image size below 5 MB");
+    // 2. Validate MIME Type
+    if (!allowedMimeTypes.includes(imageFile.mimetype)) {
+      throw new customError(400, "Only JPG, JPEG, and PNG image files are allowed");
     }
 
+    // 3. Validate Size (5MB = 5 * 1024 * 1024 bytes)
+    const MAX_SIZE = 5 * 1024 * 1024; 
+    console.log("File Size in Bytes:", imageFile.size);
+
+    if (imageFile.size > MAX_SIZE) {
+      throw new customError(400, "Image size must be below 5 MB");
+    }
 
     return value;
   } catch (error) {
-    
-    console.log(error);
-    if(error.details){
-
-         console.log("Error from validateCategory: ",error.details[0].message);
-    throw new customError(400, `Category Validation failed:${error.message}`);
-
-    }else{
-        console.log("Error from validateCategor: ",error);
-        throw new customError(400,`Categroy Validation Failed: ${error.message}`);
+    // Re-throw custom errors directly, otherwise wrap Joi/Generic errors
+    if (error instanceof customError) {
+      throw error;
     }
-
-   
+    
+    const message = error.details ? error.details[0].message : error.message;
+    throw new customError(400, `Category Validation Failed: ${message}`);
   }
 };

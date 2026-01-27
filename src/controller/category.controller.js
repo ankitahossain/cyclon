@@ -1,8 +1,14 @@
-const { validate } = require("../models/user.model")
-const { asynchandler } = require("../utils/asynchandler")
-const { validateCategory } = require("../validation/category.validation")
 
-exports.createCategory =asynchandler(async (req,res)=>{
- const value = await validateCategory(req)
- console.log(value)
+const asyncHandler  = require("../utils/asynchandler")
+const { customError } = require("../utils/customError");
+const { validateCategory } = require("../validation/category.validation");
+const { apiResponse } = require("../utils/apiResponse");
+const categoryModel= require("../models/category.model");
+const { createTestAccount } = require("nodemailer");
+
+const createCategory = asyncHandler(async (req,res)=>{
+ const {name} = await validateCategory(req);
+ console.log(name);
 }) 
+
+module.exports ={createCategory};

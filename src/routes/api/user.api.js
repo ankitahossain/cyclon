@@ -8,5 +8,7 @@ _.route("/verify-email").post(authController.emailVerification);
 _.route("/forgot-password").post(authController.forgetPassword);
 _.route("/reset-password").post(authController.resetPassword);
 _.route("/logout").post(authGuard,authController.logout);
-_.route("/getme").get(authGuard,authController.getMe)
+_.route("/getme").get(authGuard,authController.getMe);
+_.route("/refresh-token").post(authController.refreshToken)
+
 module.exports = _ ;
